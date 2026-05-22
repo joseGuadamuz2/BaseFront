@@ -1,39 +1,57 @@
+// La URL base apunta estrictamente al puerto del backend
 const BASE_URL = 'http://localhost:3000';
 
 export const apiService = {
-  // Manejo del JWT en el almacenamiento local
-  setToken: (token: string) => localStorage.setItem('token', token),
-  getToken: () => localStorage.getItem('token'),
-  logout: () => localStorage.removeItem('token'),
+  // Guardar token en el navegador
+  setToken: (token: string) => {
+    localStorage.setItem('token', token);
+  },
 
-  // Petición POST para endpoints públicos (Login o Registro)
-  async post(endpoint: string, data: any) {
+  // Obtener token
+  getToken: () => {
+    return localStorage.getItem('token');
+  },
+
+  // Cerrar sesión
+  logout: () => {
+    localStorage.removeItem('token');
+  },
+
+  // Peticiones POST públicas (como Login o Registro)
+  post: async (endpoint: string, data: any) => {
+    // Esto unirá 'http://localhost:3000' + '/auth/login' de forma perfecta
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(data),
     });
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Error en la solicitud');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Error en la petición');
     }
+
     return response.json();
   },
 
-  // Petición GET para endpoints protegidos (Envía el Bearer Token automáticamente)
-  async getAuth(endpoint: string) {
-    const token = this.getToken();
+  // Peticiones GET autenticadas (como la lista de usuarios del Dashboard)
+  getAuth: async (endpoint: string) => {
+    const token = localStorage.getItem('token');
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`, // Enviamos el JWT en las cabeceras
       },
     });
+
     if (!response.ok) {
-      if (response.status === 401) this.logout(); // Si el token expiró, limpia la sesión
-      throw new Error('Sesión expirada o acceso no autorizado');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'No autorizado');
     }
+
     return response.json();
-  }
+  },
 };
